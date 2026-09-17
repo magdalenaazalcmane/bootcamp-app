@@ -39,3 +39,16 @@ export const BUG_STATUS_TRANSITIONS = {
   closed: ['reopened'],
   reopened: ['in-progress', 'closed'],
 };
+
+export const RUN_STATUS_LABELS = {
+  'in-progress': 'In progress',
+  completed: 'Completed',
+};
+
+export const RESULTS = ['passed', 'failed', 'skipped'];
+
+export const RESULT_LABELS = {
+  passed: 'Passed',
+  failed: 'Failed',
+  skipped: 'Skipped',
+};

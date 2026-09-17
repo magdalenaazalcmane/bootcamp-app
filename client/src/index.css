@@ -129,6 +129,8 @@ select {
   border-radius: 6px;
   padding: 0.5rem 1rem;
   cursor: pointer;
+  display: inline-block;
+  text-decoration: none;
 }
 
 .pagination button {
@@ -374,4 +376,101 @@ select {
 .activity-message {
   margin: 0.4rem 0 0;
   color: #333;
+}
+
+.page-header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.run-result-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid #e3e8ee;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.run-result-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.run-result-status {
+  margin-left: auto;
+  font-weight: 600;
+  color: #4a5568;
+  white-space: nowrap;
+}
+
+.run-result-row textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.run-result-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.metric-card {
+  padding: 1rem 1.25rem;
+  border: 1px solid #e3e8ee;
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.metric-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.metric-label {
+  color: #6b7684;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.metric-hint {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.empty-state {
+  padding: 1.5rem;
+  border: 1px dashed #c9d2dc;
+  border-radius: 10px;
+  background: #fafbfc;
+  text-align: center;
+  color: #4a5568;
+  margin-bottom: 1.5rem;
+}
+
+.empty-state p {
+  margin: 0.25rem 0;
+}
+
+.skeleton-block {
+  border-radius: 10px;
+  background: linear-gradient(90deg, #eef1f5 25%, #e3e8ee 37%, #eef1f5 63%);
+  background-size: 400% 100%;
+  animation: skeleton-pulse 1.4s ease infinite;
+}
+
+@keyframes skeleton-pulse {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }

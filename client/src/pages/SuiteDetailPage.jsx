@@ -1,13 +1,16 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getSuite, updateSuite, addCaseToSuite, removeCaseFromSuite, reorderSuiteCases } from '../api/suites';
 import { listTestCases } from '../api/testCases';
+import { createRun } from '../api/testRuns';
 import SeverityBadge from '../components/SeverityBadge';
 import SuiteFormModal from '../components/SuiteFormModal';
 import { STATUS_LABELS, SUITE_STATUS_LABELS } from '../constants';
 
 function SuiteDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const [startingRun, setStartingRun] = useState(false);
   const [suite, setSuite] = useState(null);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +54,17 @@ function SuiteDetailPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchInput]);
+
+  async function handleNewRun() {
+    setStartingRun(true);
+    try {
+      const run = await createRun(id);
+      navigate(`/test-runs/${run.id}`);
+    } catch (err) {
+      alert(err.message);
+      setStartingRun(false);
+    }
+  }
 
   async function handleEditSave(payload) {
     const data = await updateSuite(id, payload);
@@ -123,9 +137,19 @@ function SuiteDetailPage() {
       <p><Link to="/test-suites">← Back to suites</Link></p>
       <div className="page-header">
         <h1>{suite.name}</h1>
-        <button className="btn-secondary" onClick={() => setShowEditForm(true)}>
-          Edit suite
-        </button>
+        <div className="page-header-actions">
+          <button
+            className="btn-primary"
+            onClick={handleNewRun}
+            disabled={cases.length === 0 || startingRun}
+            title={cases.length === 0 ? 'Add at least one case before starting a run' : undefined}
+          >
+            {startingRun ? 'Starting…' : 'New Run'}
+          </button>
+          <button className="btn-secondary" onClick={() => setShowEditForm(true)}>
+            Edit suite
+          </button>
+        </div>
       </div>
       <p className="suite-meta">
         Feature: <strong className="feature-value">{suite.feature}</strong> · Status: <strong>{SUITE_STATUS_LABELS[suite.status]}</strong>

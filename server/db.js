@@ -62,6 +62,42 @@ db.exec(`
     message TEXT,
     timestamp TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS test_runs_v2 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    suite_id INTEGER NOT NULL REFERENCES suites(id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK (status IN ('in-progress', 'completed')),
+    pass_count INTEGER NOT NULL DEFAULT 0,
+    fail_count INTEGER NOT NULL DEFAULT 0,
+    skip_count INTEGER NOT NULL DEFAULT 0,
+    start_time TEXT NOT NULL,
+    end_time TEXT,
+    created_by TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS test_run_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id INTEGER NOT NULL REFERENCES test_runs_v2(id) ON DELETE CASCADE,
+    test_case_id INTEGER NOT NULL REFERENCES test_cases(id) ON DELETE CASCADE,
+    result TEXT CHECK (result IS NULL OR result IN ('passed', 'failed', 'skipped')),
+    duration_ms INTEGER,
+    notes TEXT,
+    failed_at TEXT,
+    alert_sent_at TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id INTEGER REFERENCES test_runs_v2(id) ON DELETE SET NULL,
+    suite_name TEXT NOT NULL,
+    run_date TEXT NOT NULL,
+    total_count INTEGER NOT NULL,
+    passed_count INTEGER NOT NULL,
+    failed_count INTEGER NOT NULL,
+    skipped_count INTEGER NOT NULL,
+    results TEXT NOT NULL,
+    generated_at TEXT NOT NULL
+  );
 `);
 
 const seedCount = db.prepare('SELECT COUNT(*) AS count FROM test_cases').get().count;
@@ -294,6 +330,104 @@ if (bugSeedCount === 0) {
       });
     });
   });
+}
+
+const runSeedCount = db.prepare('SELECT COUNT(*) AS count FROM test_runs_v2').get().count;
+
+if (runSeedCount === 0) {
+  const seedSuite = db.prepare('SELECT id FROM suites WHERE name = ?').get('Login regression suite');
+
+  if (seedSuite) {
+    const suiteCaseIds = db
+      .prepare('SELECT test_case_id FROM suite_test_cases WHERE suite_id = ? ORDER BY sort_order ASC')
+      .all(seedSuite.id)
+      .map((r) => r.test_case_id);
+
+    if (suiteCaseIds.length > 0) {
+      const startTime = new Date(Date.now() - 2 * 3600 * 1000).toISOString();
+      const endTime = new Date(Date.now() - 2 * 3600 * 1000 + 8 * 60 * 1000).toISOString();
+
+      // Mixed results: first case passes, second fails (with a note and a
+      // simulated already-sent alert — this is seed data, not a live event,
+      // so it deliberately does NOT call the real Discord webhook), rest skipped.
+      const resultsByPosition = ['passed', 'failed', 'skipped'];
+
+      const runResult = db
+        .prepare(`
+          INSERT INTO test_runs_v2 (suite_id, status, pass_count, fail_count, skip_count, start_time, end_time, created_by)
+          VALUES (@suite_id, 'completed', @pass_count, @fail_count, @skip_count, @start_time, @end_time, @created_by)
+        `)
+        .run({
+          suite_id: seedSuite.id,
+          pass_count: suiteCaseIds.filter((_, i) => resultsByPosition[i % 3] === 'passed').length,
+          fail_count: suiteCaseIds.filter((_, i) => resultsByPosition[i % 3] === 'failed').length,
+          skip_count: suiteCaseIds.filter((_, i) => resultsByPosition[i % 3] === 'skipped').length,
+          start_time: startTime,
+          end_time: endTime,
+          created_by: 'magdalena.a.zalcmane@testdevlab.com',
+        });
+
+      const insertResult = db.prepare(`
+        INSERT INTO test_run_results (run_id, test_case_id, result, duration_ms, notes, failed_at, alert_sent_at)
+        VALUES (@run_id, @test_case_id, @result, @duration_ms, @notes, @failed_at, @alert_sent_at)
+      `);
+
+      suiteCaseIds.forEach((testCaseId, index) => {
+        const outcome = resultsByPosition[index % 3];
+        insertResult.run({
+          run_id: runResult.lastInsertRowid,
+          test_case_id: testCaseId,
+          result: outcome,
+          duration_ms: 1200 + index * 300,
+          notes: outcome === 'failed' ? 'Login page redirected to a 500 error page instead of showing the dashboard.' : null,
+          failed_at: outcome === 'failed' ? endTime : null,
+          alert_sent_at: outcome === 'failed' ? endTime : null,
+        });
+      });
+    }
+  }
+}
+
+const reportSeedCount = db.prepare('SELECT COUNT(*) AS count FROM reports').get().count;
+
+if (reportSeedCount === 0) {
+  const seedRun = db
+    .prepare(`
+      SELECT r.*, s.name AS suite_name
+      FROM test_runs_v2 r
+      JOIN suites s ON s.id = r.suite_id
+      WHERE s.name = 'Login regression suite'
+      ORDER BY r.start_time ASC
+      LIMIT 1
+    `)
+    .get();
+
+  if (seedRun) {
+    const results = db
+      .prepare(`
+        SELECT rr.test_case_id, rr.result, rr.notes, rr.failed_at, tc.title, tc.severity
+        FROM test_run_results rr
+        JOIN test_cases tc ON tc.id = rr.test_case_id
+        WHERE rr.run_id = ?
+        ORDER BY rr.id ASC
+      `)
+      .all(seedRun.id);
+
+    db.prepare(`
+      INSERT INTO reports (run_id, suite_name, run_date, total_count, passed_count, failed_count, skipped_count, results, generated_at)
+      VALUES (@run_id, @suite_name, @run_date, @total_count, @passed_count, @failed_count, @skipped_count, @results, @generated_at)
+    `).run({
+      run_id: seedRun.id,
+      suite_name: seedRun.suite_name,
+      run_date: seedRun.start_time,
+      total_count: results.length,
+      passed_count: seedRun.pass_count,
+      failed_count: seedRun.fail_count,
+      skipped_count: seedRun.skip_count,
+      results: JSON.stringify(results),
+      generated_at: seedRun.end_time || new Date().toISOString(),
+    });
+  }
 }
 
 export default db;
