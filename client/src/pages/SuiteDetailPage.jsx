@@ -182,10 +182,12 @@ function SuiteDetailPage() {
                 <td>{c.title}</td>
                 <td><SeverityBadge severity={c.severity} /></td>
                 <td>{STATUS_LABELS[c.status]}</td>
-                <td className="row-actions">
-                  <button className="link-btn danger" onClick={() => handleRemoveCase(c.test_case_id)}>
-                    Remove
-                  </button>
+                <td>
+                  <div className="row-actions">
+                    <button className="link-btn danger" onClick={() => handleRemoveCase(c.test_case_id)}>
+                      Remove
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -194,7 +196,9 @@ function SuiteDetailPage() {
       )}
 
       <h2>Add a case</h2>
+      <label className="visually-hidden" htmlFor="add-case-search">Search test cases by title</label>
       <input
+        id="add-case-search"
         type="text"
         placeholder="Search test cases by title…"
         value={searchInput}

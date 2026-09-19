@@ -105,12 +105,13 @@ function TestCaseFormModal({ initial, onSave, onClose }) {
                   type="text"
                   value={step}
                   onChange={(e) => updateStep(i, e.target.value)}
+                  aria-label={`Step ${i + 1}`}
                 />
                 <button
                   type="button"
                   className="icon-btn"
                   onClick={() => removeStep(i)}
-                  aria-label="Remove step"
+                  aria-label={`Remove step ${i + 1}`}
                 >
                   ✕
                 </button>

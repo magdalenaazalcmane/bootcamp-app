@@ -1,25 +1,246 @@
+/* Theme tokens — surfaces, text, borders, chart colors (categorical series +
+   the focus ring on focusable chart marks), links, and the danger/error
+   color. Solid-fill accent colors (buttons, severity/status/priority
+   badges) are still deliberately NOT themed — those stay identical in both
+   modes since they're opaque pills, not text on the page background. Chart
+   colors, link text, and danger/error text ARE themed: their light-mode
+   hex values measure well under 4.5:1 (text) or the dark-surface lightness
+   band (charts) against the dark surface — verified with the dataviz
+   skill's validate_palette.js and a WCAG contrast calculation — so dark
+   mode uses its own validated steps, not a flat reuse. */
+:root {
+  --surface-page: #ffffff;
+  --surface-card: #fafbfc;
+  --surface-modal: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a5568;
+  --text-muted: #6b7684;
+  --border: #e3e8ee;
+  --border-subtle: #eef1f5;
+  --border-input: #c9d2dc;
+  --chart-cat-1: #2a78d6;
+  --chart-cat-2: #eb6834;
+  --chart-cat-3: #1baf7a;
+  --chart-cat-4: #eda100;
+  --chart-cat-5: #e87ba4;
+  --chart-cat-6: #008300;
+  --chart-cat-7: #4a3aa7;
+  --chart-cat-8: #e34948;
+  --chart-focus-ring: #0b63c5;
+  --link-color: #0b63c5;
+  --danger-color: #b3261e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-page: #15171b;
+    --surface-card: #1d2025;
+    --surface-modal: #1d2025;
+    --text-primary: #f2f3f5;
+    --text-secondary: #b8bcc4;
+    --text-muted: #8b909a;
+    --border: #2c3038;
+    --border-subtle: #23262c;
+    --border-input: #3a3f47;
+    --chart-cat-1: #3987e5;
+    --chart-cat-2: #d95926;
+    --chart-cat-3: #199e70;
+    --chart-cat-4: #c98500;
+    --chart-cat-5: #d55181;
+    --chart-cat-6: #008300;
+    --chart-cat-7: #9085e9;
+    --chart-cat-8: #e66767;
+    --chart-focus-ring: #3987e5;
+    --link-color: #5598e7;
+    --danger-color: #f2695c;
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface-page: #15171b;
+  --surface-card: #1d2025;
+  --surface-modal: #1d2025;
+  --text-primary: #f2f3f5;
+  --text-secondary: #b8bcc4;
+  --text-muted: #8b909a;
+  --border: #2c3038;
+  --border-subtle: #23262c;
+  --border-input: #3a3f47;
+  --chart-cat-1: #3987e5;
+  --chart-cat-2: #d95926;
+  --chart-cat-3: #199e70;
+  --chart-cat-4: #c98500;
+  --chart-cat-5: #d55181;
+  --chart-cat-6: #008300;
+  --chart-cat-7: #9085e9;
+  --chart-cat-8: #e66767;
+  --chart-focus-ring: #3987e5;
+  --link-color: #5598e7;
+  --danger-color: #f2695c;
+}
+
 body {
   margin: 0;
-  color: #1a1a1a;
-  background: #ffffff;
+  color: var(--text-primary);
+  background: var(--surface-page);
   font-family: system-ui, -apple-system, sans-serif;
 }
 
+/* Baseline visible focus ring for every interactive element. Buttons that
+   fill their own background with an accent color (e.g. .btn-primary's blue)
+   otherwise get the browser's default focus ring in a near-identical blue
+   at 0 offset, which is effectively invisible against that same fill —
+   confirmed by screenshot, not assumed. Pushing the ring outside the
+   element with `outline-offset` means it's drawn against the page
+   background instead, so it only ever needs contrast against
+   --surface-page/--surface-card, which --text-primary already clears by a
+   wide margin in both themes. More specific existing rules (e.g. the chart
+   marks' own themed ring) still win via specificity.  */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+/* Unstyled content links (bug/suite/run titles, activity feed, etc.) —
+   otherwise these fall back to the browser's default link blue (#0000EE)
+   and visited purple (#551A8B), neither designed against this app's dark
+   surface: ~1.9:1 and ~1.6:1 there, both far under the 4.5:1 AA minimum for
+   text. One controlled color for both states also removes the
+   unvisited/visited mismatch; the underline (browser default, untouched
+   here) is what marks it as a link, not the color pairing. Both themes'
+   --link-color clear 4.5:1 against their own surfaces. Nav links and
+   button-styled links (.link-btn, .btn-secondary) keep their own colors. */
+a {
+  color: var(--link-color);
+}
+
+a:visited {
+  color: var(--link-color);
+}
+
 .nav {
+  position: relative;
   display: flex;
-  gap: 1.25rem;
+  align-items: center;
   padding: 1rem 2rem;
-  border-bottom: 1px solid #e3e8ee;
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-right: 0.75rem;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.nav-toggle-icon,
+.nav-toggle-icon::before,
+.nav-toggle-icon::after {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--text-primary);
+  border-radius: 1px;
+}
+
+.nav-toggle-icon {
+  position: relative;
+}
+
+.nav-toggle-icon::before,
+.nav-toggle-icon::after {
+  content: '';
+  position: absolute;
+  left: 0;
+}
+
+.nav-toggle-icon::before {
+  top: -6px;
+}
+
+.nav-toggle-icon::after {
+  top: 6px;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex: 1;
 }
 
 .nav a {
-  color: #1a1a1a;
+  color: var(--text-primary);
   text-decoration: none;
   font-weight: 600;
+  padding: 0.3rem 0;
+  border-bottom: 2px solid transparent;
 }
 
 .nav a:hover {
   text-decoration: underline;
+}
+
+.nav a[aria-current='page'] {
+  color: var(--link-color);
+  border-bottom-color: var(--link-color);
+}
+
+.nav-settings {
+  margin-left: auto;
+}
+
+@media (max-width: 768px) {
+  .nav-toggle {
+    display: inline-flex;
+  }
+
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: var(--surface-page);
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem 2rem 1rem;
+    z-index: 10;
+  }
+
+  .nav-links.nav-links-open {
+    display: flex;
+  }
+
+  .nav a {
+    padding: 0.6rem 0;
+    border-bottom: none;
+    border-left: 3px solid transparent;
+    padding-left: 0.6rem;
+  }
+
+  .nav a[aria-current='page'] {
+    border-bottom: none;
+    border-left-color: var(--link-color);
+    background: var(--border-subtle);
+  }
+
+  .nav-settings {
+    margin-left: 0;
+  }
 }
 
 .page {
@@ -33,6 +254,18 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.25rem;
+}
+
+.settings-saved {
+  color: #1c7c3c;
+  font-weight: 600;
+  font-size: 0.9rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.settings-saved.visible {
+  opacity: 1;
 }
 
 .toolbar {
@@ -52,8 +285,10 @@ select {
   font-family: inherit;
   font-size: 0.95rem;
   padding: 0.45rem 0.6rem;
-  border: 1px solid #c9d2dc;
+  border: 1px solid var(--border-input);
   border-radius: 6px;
+  background: var(--surface-modal);
+  color: var(--text-primary);
 }
 
 .test-case-table {
@@ -66,7 +301,22 @@ select {
 .test-case-table td {
   text-align: left;
   padding: 0.6rem 0.75rem;
-  border-bottom: 1px solid #eef1f5;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+/* Keeps every row the same height regardless of title length — without this,
+   a long title wraps onto two lines while shorter ones don't, so that row's
+   divider sits lower than its neighbors' even though the border itself is
+   perfectly straight across that one row. A max-width on the <td> itself
+   doesn't reliably truncate in an auto-layout table, so the cap lives on
+   this inner wrapper instead. */
+.cell-ellipsis {
+  display: block;
+  max-width: 420px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .test-case-table th.sortable {
@@ -80,6 +330,7 @@ select {
 
 .row-actions {
   display: flex;
+  align-items: center;
   gap: 0.75rem;
   white-space: nowrap;
 }
@@ -87,14 +338,15 @@ select {
 .link-btn {
   background: none;
   border: none;
-  color: #0b63c5;
+  color: var(--link-color);
   cursor: pointer;
   padding: 0;
   font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .link-btn.danger {
-  color: #b3261e;
+  color: var(--danger-color);
 }
 
 .link-btn:hover {
@@ -123,8 +375,8 @@ select {
 }
 
 .btn-secondary {
-  background: #eef1f5;
-  color: #1a1a1a;
+  background: var(--border-subtle);
+  color: var(--text-primary);
   border: none;
   border-radius: 6px;
   padding: 0.5rem 1rem;
@@ -134,8 +386,9 @@ select {
 }
 
 .pagination button {
-  background: #eef1f5;
-  border: none;
+  background: var(--border-subtle);
+  color: var(--text-primary);
+  border: 1px solid var(--text-muted);
   border-radius: 6px;
   padding: 0.4rem 0.9rem;
   cursor: pointer;
@@ -147,7 +400,7 @@ select {
 }
 
 .form-error {
-  color: #b3261e;
+  color: var(--danger-color);
   font-weight: 600;
 }
 
@@ -163,7 +416,7 @@ select {
 }
 
 .modal {
-  background: white;
+  background: var(--surface-modal);
   border-radius: 10px;
   padding: 1.5rem 1.75rem;
   width: 100%;
@@ -231,12 +484,12 @@ select {
   background: none;
   border: none;
   cursor: pointer;
-  color: #6b7684;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
 .icon-btn:hover {
-  color: #b3261e;
+  color: var(--danger-color);
 }
 
 .modal-actions {
@@ -246,8 +499,91 @@ select {
   margin-top: 1rem;
 }
 
+.shortcuts-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.shortcuts-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.shortcuts-list kbd {
+  flex-shrink: 0;
+  min-width: 5.5rem;
+  text-align: center;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  background: var(--surface-card);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.shortcuts-list span {
+  color: var(--text-secondary);
+}
+
+.quick-search-modal {
+  max-width: 560px;
+}
+
+.quick-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 1.05rem;
+  padding: 0.6rem 0.75rem;
+}
+
+.quick-search-hint {
+  color: var(--text-muted);
+  margin: 1rem 0 0;
+}
+
+.quick-search-group {
+  margin-top: 1rem;
+}
+
+.quick-search-group h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.quick-search-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.quick-search-group li {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.quick-search-group li:last-child {
+  border-bottom: none;
+}
+
+.quick-search-group .link-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.15rem;
+}
+
 .suite-meta {
-  color: #4a5568;
+  color: var(--text-secondary);
   margin-bottom: 1.5rem;
 }
 
@@ -265,9 +601,9 @@ select {
   align-items: center;
   gap: 0.75rem;
   padding: 0.6rem 0.75rem;
-  border: 1px solid #e3e8ee;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fafbfc;
+  background: var(--surface-card);
 }
 
 .suite-case-row[draggable='true'] {
@@ -293,7 +629,7 @@ select {
 }
 
 .suite-case-status {
-  color: #4a5568;
+  color: var(--text-secondary);
   font-size: 0.9rem;
   white-space: nowrap;
 }
@@ -356,9 +692,9 @@ select {
 
 .activity-entry {
   padding: 0.6rem 0.75rem;
-  border: 1px solid #e3e8ee;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fafbfc;
+  background: var(--surface-card);
 }
 
 .activity-meta {
@@ -368,14 +704,14 @@ select {
 }
 
 .activity-timestamp {
-  color: #6b7684;
+  color: var(--text-muted);
   font-size: 0.85rem;
   white-space: nowrap;
 }
 
 .activity-message {
   margin: 0.4rem 0 0;
-  color: #333;
+  color: var(--text-secondary);
 }
 
 .page-header-actions {
@@ -388,9 +724,9 @@ select {
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.75rem;
-  border: 1px solid #e3e8ee;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fafbfc;
+  background: var(--surface-card);
 }
 
 .run-result-header {
@@ -402,7 +738,7 @@ select {
 .run-result-status {
   margin-left: auto;
   font-weight: 600;
-  color: #4a5568;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
@@ -427,9 +763,9 @@ select {
 
 .metric-card {
   padding: 1rem 1.25rem;
-  border: 1px solid #e3e8ee;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fafbfc;
+  background: var(--surface-card);
 }
 
 .metric-value {
@@ -439,7 +775,7 @@ select {
 }
 
 .metric-label {
-  color: #6b7684;
+  color: var(--text-muted);
   font-size: 0.85rem;
   margin-top: 0.25rem;
 }
@@ -451,11 +787,11 @@ select {
 
 .empty-state {
   padding: 1.5rem;
-  border: 1px dashed #c9d2dc;
+  border: 1px dashed var(--border-input);
   border-radius: 10px;
-  background: #fafbfc;
+  background: var(--surface-card);
   text-align: center;
-  color: #4a5568;
+  color: var(--text-secondary);
   margin-bottom: 1.5rem;
 }
 
@@ -465,7 +801,7 @@ select {
 
 .skeleton-block {
   border-radius: 10px;
-  background: linear-gradient(90deg, #eef1f5 25%, #e3e8ee 37%, #eef1f5 63%);
+  background: linear-gradient(90deg, var(--border-subtle) 25%, var(--border) 37%, var(--border-subtle) 63%);
   background-size: 400% 100%;
   animation: skeleton-pulse 1.4s ease infinite;
 }
@@ -473,4 +809,141 @@ select {
 @keyframes skeleton-pulse {
   0% { background-position: 100% 50%; }
   100% { background-position: 0 50%; }
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.chart-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  background: var(--surface-card);
+  position: relative;
+}
+
+.chart-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.75rem;
+}
+
+.chart-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.chart-card svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-card svg circle:focus,
+.chart-card svg rect:focus {
+  outline: 2px solid var(--chart-focus-ring);
+  outline-offset: 1px;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.chart-legend-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 0;
+  justify-content: center;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: default;
+}
+
+.chart-legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* Reserved status colors (good/critical) measure below the colorblind
+   separation floor as a pair (verified with validate_palette.js — worst
+   deutan ΔE 4.1), so the two series that use them also carry a shape
+   difference, not just hue: never rely on red/green alone. */
+.chart-legend-swatch--round {
+  border-radius: 50%;
+}
+
+.chart-legend-value {
+  color: var(--text-muted);
+  margin-left: 0.15rem;
+}
+
+.chart-tooltip {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 1.25rem;
+  right: 1.25rem;
+  background: var(--surface-modal);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+
+.chart-tooltip-muted {
+  color: var(--text-muted);
+}
+
+.donut-layout {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.donut-layout svg {
+  max-width: 220px;
+  flex-shrink: 0;
+}
+
+.page form h2 {
+  font-size: 1rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.page form h2:first-of-type {
+  margin-top: 0.5rem;
+}
+
+.page form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.9rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  max-width: 320px;
+}
+
+.page form select {
+  font-weight: normal;
 }

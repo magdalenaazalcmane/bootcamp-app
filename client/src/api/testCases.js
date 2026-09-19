@@ -32,3 +32,18 @@ export function deleteTestCase(id) {
 export function getTestCaseSuites(id) {
   return request(`/${id}/suites`);
 }
+
+export function previewImport(csvText) {
+  return request('/import/preview', { method: 'POST', body: JSON.stringify({ csv_text: csvText }) });
+}
+
+export function commitImport(rows) {
+  return request('/import/commit', { method: 'POST', body: JSON.stringify({ rows }) });
+}
+
+export function getExportCsvUrl(params = {}) {
+  const query = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined && v !== null))
+  ).toString();
+  return `/api/test-cases/export/csv?${query}`;
+}

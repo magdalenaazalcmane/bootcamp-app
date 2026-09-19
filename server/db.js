@@ -98,6 +98,16 @@ db.exec(`
     results TEXT NOT NULL,
     generated_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS user_preferences (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    theme TEXT NOT NULL CHECK (theme IN ('light', 'dark', 'system')) DEFAULT 'system',
+    default_severity_for_new_bugs TEXT NOT NULL CHECK (default_severity_for_new_bugs IN ('Critical', 'Major', 'Minor', 'Trivial')) DEFAULT 'Minor',
+    default_page_size INTEGER NOT NULL CHECK (default_page_size IN (10, 20, 50, 100)) DEFAULT 20,
+    timezone TEXT,
+    auto_generate_report_after_run INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL
+  );
 `);
 
 const seedCount = db.prepare('SELECT COUNT(*) AS count FROM test_cases').get().count;
@@ -428,6 +438,15 @@ if (reportSeedCount === 0) {
       generated_at: seedRun.end_time || new Date().toISOString(),
     });
   }
+}
+
+const preferencesRow = db.prepare('SELECT id FROM user_preferences WHERE id = 1').get();
+
+if (!preferencesRow) {
+  db.prepare(`
+    INSERT INTO user_preferences (id, theme, default_severity_for_new_bugs, default_page_size, timezone, auto_generate_report_after_run, updated_at)
+    VALUES (1, 'system', 'Minor', 20, NULL, 1, ?)
+  `).run(new Date().toISOString());
 }
 
 export default db;

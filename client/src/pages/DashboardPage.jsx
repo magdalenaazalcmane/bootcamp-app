@@ -1,7 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { getDashboardMetrics } from '../api/dashboard';
+import { getDashboardMetrics, getDashboardTrends } from '../api/dashboard';
 import { RUN_STATUS_LABELS } from '../constants';
+import PassRateTrendChart from '../components/charts/PassRateTrendChart';
+import BugsPerWeekChart from '../components/charts/BugsPerWeekChart';
+import CoverageDonutChart from '../components/charts/CoverageDonutChart';
 
 const REFRESH_INTERVAL_MS = 30000;
 
@@ -44,15 +47,17 @@ function DashboardSkeleton() {
 
 function DashboardPage() {
   const [data, setData] = useState(null);
+  const [trends, setTrends] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const hasLoadedOnce = useRef(false);
 
   const load = useCallback(() => {
     if (!hasLoadedOnce.current) setLoading(true);
-    getDashboardMetrics()
-      .then((result) => {
-        setData(result);
+    Promise.all([getDashboardMetrics(), getDashboardTrends()])
+      .then(([metricsResult, trendsResult]) => {
+        setData(metricsResult);
+        setTrends(trendsResult);
         setError(null);
         hasLoadedOnce.current = true;
       })
@@ -100,6 +105,14 @@ function DashboardPage() {
               hint={data.metrics.avg_run_duration_seconds === null && <Link to="/test-suites">Start a test run →</Link>}
             />
           </div>
+
+          {trends && (
+            <div className="charts-grid">
+              <PassRateTrendChart data={trends.pass_rate_trend} />
+              <BugsPerWeekChart data={trends.bugs_per_week} />
+              <CoverageDonutChart data={trends.coverage_by_status} />
+            </div>
+          )}
 
           <h2>Recent test runs</h2>
           {data.recent_runs.length === 0 ? (

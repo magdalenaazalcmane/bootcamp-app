@@ -81,6 +81,66 @@ function handleGetMetrics(req, res) {
   });
 }
 
+const COVERAGE_STATUSES = ['draft', 'ready', 'passed', 'failed', 'skipped'];
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function handleGetTrends(req, res) {
+  // 1. Pass-rate trend: last 10 runs that actually have recorded results,
+  // oldest first (left-to-right on a line chart). Runs with zero recorded
+  // results (freshly created, nothing marked yet) carry no trend information
+  // and are excluded rather than plotted as a misleading 0%.
+  const passRateTrend = db
+    .prepare(`
+      SELECT id, start_time, pass_count, fail_count, skip_count
+      FROM test_runs_v2
+      WHERE (pass_count + fail_count + skip_count) > 0
+      ORDER BY start_time DESC
+      LIMIT 10
+    `)
+    .all()
+    .reverse()
+    .map((r) => {
+      const total = r.pass_count + r.fail_count + r.skip_count;
+      return {
+        run_id: r.id,
+        date: r.start_time,
+        pass_rate: Math.round((r.pass_count / total) * 1000) / 10,
+      };
+    });
+
+  // 2. Bugs opened vs. closed per week, last 8 weeks (oldest first). "Closed"
+  // counts actual close events from bug_activity (a bug can be closed,
+  // reopened, and closed again), not a snapshot of bugs currently closed.
+  const bugsPerWeek = [];
+  const now = Date.now();
+  const openedStmt = db.prepare('SELECT COUNT(*) AS count FROM bugs WHERE created_at >= ? AND created_at < ?');
+  const closedStmt = db.prepare(`
+    SELECT COUNT(*) AS count FROM bug_activity
+    WHERE action = 'status_change' AND new_value = 'closed' AND timestamp >= ? AND timestamp < ?
+  `);
+  for (let i = 7; i >= 0; i--) {
+    const weekEnd = new Date(now - i * WEEK_MS);
+    const weekStart = new Date(weekEnd.getTime() - WEEK_MS);
+    const opened = openedStmt.get(weekStart.toISOString(), weekEnd.toISOString()).count;
+    const closed = closedStmt.get(weekStart.toISOString(), weekEnd.toISOString()).count;
+    bugsPerWeek.push({ week_start: weekStart.toISOString(), opened, closed });
+  }
+
+  // 3. Test coverage by status — every status always represented (0 if none),
+  // so the chart's category set never shifts based on what data happens to exist.
+  const statusCounts = Object.fromEntries(
+    db.prepare('SELECT status, COUNT(*) AS count FROM test_cases GROUP BY status').all().map((r) => [r.status, r.count])
+  );
+  const coverageByStatus = COVERAGE_STATUSES.map((status) => ({ status, count: statusCounts[status] || 0 }));
+
+  ok(res, {
+    pass_rate_trend: passRateTrend,
+    bugs_per_week: bugsPerWeek,
+    coverage_by_status: coverageByStatus,
+  });
+}
+
 router.get('/metrics', handleGetMetrics);
+router.get('/trends', handleGetTrends);
 
 export default router;

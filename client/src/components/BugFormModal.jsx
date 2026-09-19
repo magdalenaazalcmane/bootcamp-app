@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { SEVERITIES, BUG_PRIORITIES } from '../constants';
 import { useModalA11y } from '../hooks/useModalA11y';
 
-function emptyForm() {
+function emptyForm(defaultSeverity) {
   return {
     title: '',
     description: '',
@@ -10,12 +10,12 @@ function emptyForm() {
     expected: '',
     actual: '',
     environment: '',
-    severity: 'Major',
+    severity: defaultSeverity || 'Major',
     priority: 'Medium',
   };
 }
 
-function BugFormModal({ initial, onSave, onClose }) {
+function BugFormModal({ initial, defaultSeverity, onSave, onClose }) {
   const [form, setForm] = useState(
     initial
       ? {
@@ -28,7 +28,7 @@ function BugFormModal({ initial, onSave, onClose }) {
           severity: initial.severity,
           priority: initial.priority,
         }
-      : emptyForm()
+      : emptyForm(defaultSeverity)
   );
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);

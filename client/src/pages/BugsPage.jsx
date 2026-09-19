@@ -4,12 +4,14 @@ import { listBugs, createBug, deleteBug } from '../api/bugs';
 import SeverityBadge from '../components/SeverityBadge';
 import BugFormModal from '../components/BugFormModal';
 import { SEVERITIES, BUG_STATUSES, BUG_STATUS_LABELS } from '../constants';
+import { useSettings } from '../context/SettingsContext';
 
 function formatDate(iso) {
   return new Date(iso).toLocaleString();
 }
 
 function BugsPage() {
+  const { settings } = useSettings();
   const [items, setItems] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [severityFilter, setSeverityFilter] = useState('');
@@ -188,10 +190,12 @@ function BugsPage() {
                 <td>{bug.priority}</td>
                 <td>{BUG_STATUS_LABELS[bug.status]}</td>
                 <td>{formatDate(bug.updated_at)}</td>
-                <td className="row-actions">
-                  <button className="link-btn danger" onClick={() => handleDelete(bug)}>
-                    Delete
-                  </button>
+                <td>
+                  <div className="row-actions">
+                    <button className="link-btn danger" onClick={() => handleDelete(bug)}>
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))
@@ -200,7 +204,11 @@ function BugsPage() {
       </table>
 
       {showForm && (
-        <BugFormModal onSave={handleCreate} onClose={() => setShowForm(false)} />
+        <BugFormModal
+          defaultSeverity={settings?.default_severity_for_new_bugs}
+          onSave={handleCreate}
+          onClose={() => setShowForm(false)}
+        />
       )}
     </div>
   );

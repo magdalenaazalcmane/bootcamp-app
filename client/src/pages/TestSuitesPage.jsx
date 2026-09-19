@@ -54,7 +54,8 @@ function TestSuitesPage() {
       </div>
 
       <div className="toolbar">
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <label className="visually-hidden" htmlFor="suite-status-filter">Filter by status</label>
+        <select id="suite-status-filter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All statuses</option>
           {SUITE_STATUSES.map((s) => (
             <option key={s} value={s}>{SUITE_STATUS_LABELS[s]}</option>
@@ -88,10 +89,12 @@ function TestSuitesPage() {
                 <td>{SUITE_STATUS_LABELS[suite.status]}</td>
                 <td>{suite.case_count}</td>
                 <td>{formatDate(suite.updated_at)}</td>
-                <td className="row-actions">
-                  <button className="link-btn danger" onClick={() => handleDelete(suite)}>
-                    Delete
-                  </button>
+                <td>
+                  <div className="row-actions">
+                    <button className="link-btn danger" onClick={() => handleDelete(suite)}>
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))

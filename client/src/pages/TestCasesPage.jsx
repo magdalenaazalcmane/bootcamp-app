@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { listTestCases, createTestCase, updateTestCase, deleteTestCase, getTestCaseSuites } from '../api/testCases';
+import { Link } from 'react-router-dom';
+import { listTestCases, createTestCase, updateTestCase, deleteTestCase, getTestCaseSuites, getExportCsvUrl } from '../api/testCases';
 import SeverityBadge from '../components/SeverityBadge';
 import TestCaseFormModal from '../components/TestCaseFormModal';
 import { STATUSES, STATUS_LABELS } from '../constants';
@@ -65,6 +66,18 @@ function TestCasesPage() {
     return order === 'asc' ? ' ▲' : ' ▼';
   }
 
+  function ariaSortFor(column) {
+    if (sortBy !== column) return 'none';
+    return order === 'asc' ? 'ascending' : 'descending';
+  }
+
+  function handleSortKeyDown(e, column) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleSort(column);
+    }
+  }
+
   async function handleSave(payload) {
     if (modalState.mode === 'create') {
       await createTestCase(payload);
@@ -101,20 +114,30 @@ function TestCasesPage() {
     <div className="page">
       <div className="page-header">
         <h1>Test cases</h1>
-        <button className="btn-primary" onClick={() => setModalState({ mode: 'create' })}>
-          + New test case
-        </button>
+        <div className="page-header-actions">
+          <a className="btn-secondary" href={getExportCsvUrl({ search, status: statusFilter, sortBy, order })} download>
+            Download CSV
+          </a>
+          <Link className="btn-secondary" to="/test-cases/import">Import CSV</Link>
+          <button className="btn-primary" onClick={() => setModalState({ mode: 'create' })}>
+            + New test case
+          </button>
+        </div>
       </div>
 
       <div className="toolbar">
+        <label className="visually-hidden" htmlFor="test-case-search">Search by title</label>
         <input
+          id="test-case-search"
           type="text"
           placeholder="Search by title…"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="search-input"
         />
+        <label className="visually-hidden" htmlFor="test-case-status-filter">Filter by status</label>
         <select
+          id="test-case-status-filter"
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value);
@@ -133,16 +156,44 @@ function TestCasesPage() {
       <table className="test-case-table">
         <thead>
           <tr>
-            <th className="sortable" onClick={() => toggleSort('title')}>
+            <th
+              className="sortable"
+              role="button"
+              tabIndex={0}
+              aria-sort={ariaSortFor('title')}
+              onClick={() => toggleSort('title')}
+              onKeyDown={(e) => handleSortKeyDown(e, 'title')}
+            >
               Title{sortIndicator('title')}
             </th>
-            <th className="sortable" onClick={() => toggleSort('severity')}>
+            <th
+              className="sortable"
+              role="button"
+              tabIndex={0}
+              aria-sort={ariaSortFor('severity')}
+              onClick={() => toggleSort('severity')}
+              onKeyDown={(e) => handleSortKeyDown(e, 'severity')}
+            >
               Severity{sortIndicator('severity')}
             </th>
-            <th className="sortable" onClick={() => toggleSort('status')}>
+            <th
+              className="sortable"
+              role="button"
+              tabIndex={0}
+              aria-sort={ariaSortFor('status')}
+              onClick={() => toggleSort('status')}
+              onKeyDown={(e) => handleSortKeyDown(e, 'status')}
+            >
               Status{sortIndicator('status')}
             </th>
-            <th className="sortable" onClick={() => toggleSort('updated_at')}>
+            <th
+              className="sortable"
+              role="button"
+              tabIndex={0}
+              aria-sort={ariaSortFor('updated_at')}
+              onClick={() => toggleSort('updated_at')}
+              onKeyDown={(e) => handleSortKeyDown(e, 'updated_at')}
+            >
               Updated{sortIndicator('updated_at')}
             </th>
             <th></th>
@@ -156,17 +207,19 @@ function TestCasesPage() {
           ) : (
             items.map((item) => (
               <tr key={item.id}>
-                <td>{item.title}</td>
+                <td><span className="cell-ellipsis" title={item.title}>{item.title}</span></td>
                 <td><SeverityBadge severity={item.severity} /></td>
                 <td>{STATUS_LABELS[item.status]}</td>
                 <td>{formatDate(item.updated_at)}</td>
-                <td className="row-actions">
-                  <button className="link-btn" onClick={() => setModalState({ mode: 'edit', item })}>
-                    Edit
-                  </button>
-                  <button className="link-btn danger" onClick={() => handleDelete(item)}>
-                    Delete
-                  </button>
+                <td>
+                  <div className="row-actions">
+                    <button className="link-btn" onClick={() => setModalState({ mode: 'edit', item })}>
+                      Edit
+                    </button>
+                    <button className="link-btn danger" onClick={() => handleDelete(item)}>
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))
