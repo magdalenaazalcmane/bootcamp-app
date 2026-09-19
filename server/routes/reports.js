@@ -3,6 +3,91 @@ import db from '../db.js';
 
 const router = Router();
 
+const ANTHROPIC_MODEL = 'claude-sonnet-5';
+const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
+
+// Calls the real Anthropic API to write a short, plain-language paragraph
+// about this specific run's actual results — never a template. Returns null
+// (never throws) on any failure: no API key, a network error, or a bad
+// response should never block report creation, the same defensive
+// contract testRuns.js already uses for Discord alerts.
+async function generateNarrative({ suiteName, results }) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+
+  const lines = results.map((r) => {
+    const status = r.result ? r.result : 'pending';
+    const note = r.notes && r.notes.trim() ? ` — note: ${r.notes.trim()}` : '';
+    return `- [${r.severity}] ${r.title}: ${status}${note}`;
+  });
+
+  const prompt = [
+    `You are summarizing one QA test run for the suite "${suiteName}" for a reader who is not an engineer.`,
+    'Here are the actual results, one per line, as [severity] title: status:',
+    lines.join('\n'),
+    '',
+    'Write a short paragraph (3-5 sentences) in plain language describing what passed and what failed, and calling out any pattern worth noting — for example failures clustered in one severity or area, or a clean run with nothing notable. Do not repeat every row; summarize. Do not use buzzwords or filler. Output only the paragraph, no heading, no bullet points.',
+  ].join('\n');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!res.ok) {
+      console.error('[AI narrative] Anthropic API returned', res.status, await res.text());
+      return null;
+    }
+
+    const body = await res.json();
+    const text = body.content?.[0]?.text?.trim();
+    return text || null;
+  } catch (err) {
+    console.error('[AI narrative] failed to generate:', err.message);
+    return null;
+  }
+}
+
+// Posts the AI narrative (if one was generated) to Discord alongside the
+// pass/fail counts and a link to the full report. Same never-throws
+// contract as generateNarrative — a Discord outage never blocks reporting.
+async function sendReportDiscordAlert(report) {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl || !report.narrative) return false;
+
+  const reportLink = `${APP_BASE_URL}/reports/${report.id}`;
+  const content = [
+    `**Report generated: ${report.suite_name}**`,
+    `${report.passed_count} passed · ${report.failed_count} failed · ${report.skipped_count} skipped`,
+    '',
+    report.narrative,
+    '',
+    `**Report:** ${reportLink}`,
+  ].join('\n');
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('[Discord alert] failed to send:', err.message);
+    return false;
+  }
+}
+
 function ok(res, data) {
   res.json({ success: true, data, error: null });
 }
@@ -36,7 +121,7 @@ function handleGetReport(req, res) {
   ok(res, serializeReport(row));
 }
 
-function handleCreateReport(req, res) {
+async function handleCreateReport(req, res) {
   const runId = Number(req.body?.run_id);
   if (!runId) return fail(res, 400, 'run_id is required');
 
@@ -60,16 +145,19 @@ function handleCreateReport(req, res) {
     `)
     .all(runId);
 
+  const narrative = await generateNarrative({ suiteName: run.suite_name, results });
+
   const now = new Date().toISOString();
   const insert = db
     .prepare(`
-      INSERT INTO reports (run_id, suite_name, run_date, total_count, passed_count, failed_count, skipped_count, results, generated_at)
-      VALUES (@run_id, @suite_name, @run_date, @total_count, @passed_count, @failed_count, @skipped_count, @results, @generated_at)
+      INSERT INTO reports (run_id, suite_name, run_date, total_count, passed_count, failed_count, skipped_count, results, narrative, generated_at)
+      VALUES (@run_id, @suite_name, @run_date, @total_count, @passed_count, @failed_count, @skipped_count, @results, @narrative, @generated_at)
     `)
     .run({
       run_id: run.id,
       suite_name: run.suite_name,
       run_date: run.start_time,
+      narrative,
       total_count: results.length,
       passed_count: run.pass_count,
       failed_count: run.fail_count,
@@ -78,7 +166,9 @@ function handleCreateReport(req, res) {
       generated_at: now,
     });
 
-  ok(res, serializeReport(getReportRow(insert.lastInsertRowid)));
+  const report = serializeReport(getReportRow(insert.lastInsertRowid));
+  await sendReportDiscordAlert(report);
+  ok(res, report);
 }
 
 function escapeHtml(value) {
@@ -189,6 +279,15 @@ function renderReportHtml(report, { autoprint }) {
   }
   .summary-value { font-size: 1.9rem; font-weight: 700; line-height: 1.2; }
   .summary-label { font-size: 0.85rem; color: #6b7684; margin-top: 0.25rem; }
+  .narrative {
+    background: #f5f7f9;
+    border-left: 3px solid #0b63c5;
+    border-radius: 6px;
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
   h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
   th, td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid #eef1f5; vertical-align: top; }
@@ -224,6 +323,8 @@ function renderReportHtml(report, { autoprint }) {
       ${summaryCard('Failed', report.failed_count, SUMMARY_ACCENT.failed)}
       ${summaryCard('Skipped', report.skipped_count, SUMMARY_ACCENT.skipped)}
     </div>
+
+    ${report.narrative ? `<div class="narrative">${escapeHtml(report.narrative)}</div>` : ''}
 
     <h2>Results</h2>
     <table>

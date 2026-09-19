@@ -121,6 +121,7 @@ function BugsPage() {
 
       {error && <p className="form-error">{error}</p>}
 
+      <div className="table-scroll">
       <table className="test-case-table">
         <thead>
           <tr>
@@ -202,6 +203,7 @@ function BugsPage() {
           )}
         </tbody>
       </table>
+      </div>
 
       {showForm && (
         <BugFormModal

@@ -14,3 +14,7 @@ export function getDashboardMetrics() {
 export function getDashboardTrends() {
   return request('/trends');
 }
+
+export function getFlakyTests() {
+  return request('/flaky-tests');
+}

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import db from '../db.js';
+import { checkNewlyFlaky } from '../lib/flakiness.js';
 
 const router = Router();
 
@@ -69,6 +70,31 @@ async function sendFailureAlert({ runId, testCaseTitle, notes }) {
     `**Test failed:** ${testCaseTitle}`,
     `**Notes:** ${notes && notes.trim() ? notes.trim() : '(no notes provided)'}`,
     `**Run:** ${runLink}`,
+  ].join('\n');
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('[Discord alert] failed to send:', err.message);
+    return false;
+  }
+}
+
+// Posts a Discord alert the moment a test case first becomes flaky (see
+// isNewlyFlaky in lib/flakiness.js — it only fires once, not on every
+// subsequent flip). Never throws, same contract as sendFailureAlert.
+async function sendFlakeAlert({ testCaseTitle, flipCount }) {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return false;
+
+  const content = [
+    `**New flaky test detected:** ${testCaseTitle}`,
+    `This test has flipped between passed and failed ${flipCount} time(s) across its run history.`,
   ].join('\n');
 
   try {
@@ -169,8 +195,9 @@ async function handleUpdateResult(req, res) {
 
   recomputeRunAggregates(run.id);
 
+  const testCase = db.prepare('SELECT title FROM test_cases WHERE id = ?').get(testCaseId);
+
   if (isNewlyFailed) {
-    const testCase = db.prepare('SELECT title FROM test_cases WHERE id = ?').get(testCaseId);
     const alertSent = await sendFailureAlert({ runId: run.id, testCaseTitle: testCase?.title, notes });
     if (alertSent) {
       db.prepare('UPDATE test_run_results SET alert_sent_at = ? WHERE run_id = ? AND test_case_id = ?').run(
@@ -179,6 +206,11 @@ async function handleUpdateResult(req, res) {
         testCaseId
       );
     }
+  }
+
+  const flakeCheck = checkNewlyFlaky(db, testCaseId);
+  if (flakeCheck.isNewlyFlaky) {
+    await sendFlakeAlert({ testCaseTitle: testCase?.title, flipCount: flakeCheck.flipCount });
   }
 
   const updatedRun = getRunRow(run.id);

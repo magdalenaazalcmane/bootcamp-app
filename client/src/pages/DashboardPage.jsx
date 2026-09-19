@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { getDashboardMetrics, getDashboardTrends } from '../api/dashboard';
-import { RUN_STATUS_LABELS } from '../constants';
+import { getDashboardMetrics, getDashboardTrends, getFlakyTests } from '../api/dashboard';
+import { RUN_STATUS_LABELS, RESULT_LABELS } from '../constants';
 import PassRateTrendChart from '../components/charts/PassRateTrendChart';
 import BugsPerWeekChart from '../components/charts/BugsPerWeekChart';
 import CoverageDonutChart from '../components/charts/CoverageDonutChart';
+import SeverityBadge from '../components/SeverityBadge';
 
 const REFRESH_INTERVAL_MS = 30000;
 
@@ -48,16 +49,18 @@ function DashboardSkeleton() {
 function DashboardPage() {
   const [data, setData] = useState(null);
   const [trends, setTrends] = useState(null);
+  const [flakyTests, setFlakyTests] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const hasLoadedOnce = useRef(false);
 
   const load = useCallback(() => {
     if (!hasLoadedOnce.current) setLoading(true);
-    Promise.all([getDashboardMetrics(), getDashboardTrends()])
-      .then(([metricsResult, trendsResult]) => {
+    Promise.all([getDashboardMetrics(), getDashboardTrends(), getFlakyTests()])
+      .then(([metricsResult, trendsResult, flakyResult]) => {
         setData(metricsResult);
         setTrends(trendsResult);
+        setFlakyTests(flakyResult.items);
         setError(null);
         hasLoadedOnce.current = true;
       })
@@ -112,6 +115,39 @@ function DashboardPage() {
               <BugsPerWeekChart data={trends.bugs_per_week} />
               <CoverageDonutChart data={trends.coverage_by_status} />
             </div>
+          )}
+
+          <h2>Flaky tests</h2>
+          {flakyTests && flakyTests.length === 0 ? (
+            <div className="empty-state">
+              <p>No flaky tests detected.</p>
+              <p>A test shows up here once it's flipped between passed and failed across runs.</p>
+            </div>
+          ) : (
+            flakyTests && (
+              <div className="table-scroll">
+                <table className="test-case-table">
+                  <thead>
+                    <tr>
+                      <th>Test case</th>
+                      <th>Severity</th>
+                      <th>Flips</th>
+                      <th>Last result</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {flakyTests.map((t) => (
+                      <tr key={t.test_case_id}>
+                        <td>{t.title}</td>
+                        <td><SeverityBadge severity={t.severity} /></td>
+                        <td>{t.flip_count}</td>
+                        <td>{RESULT_LABELS[t.last_result]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
 
           <h2>Recent test runs</h2>

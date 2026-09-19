@@ -73,6 +73,13 @@ function ReportDetailPage() {
         </div>
       </div>
 
+      {report.narrative && (
+        <div className="report-narrative">
+          <h2>Summary</h2>
+          <p>{report.narrative}</p>
+        </div>
+      )}
+
       <h2>Results</h2>
       <table className="test-case-table">
         <thead>

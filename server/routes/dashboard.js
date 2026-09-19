@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import db from '../db.js';
+import { getFlakeLeaderboard } from '../lib/flakiness.js';
 
 const router = Router();
 
@@ -140,7 +141,12 @@ function handleGetTrends(req, res) {
   });
 }
 
+function handleGetFlakyTests(req, res) {
+  ok(res, { items: getFlakeLeaderboard(db) });
+}
+
 router.get('/metrics', handleGetMetrics);
 router.get('/trends', handleGetTrends);
+router.get('/flaky-tests', handleGetFlakyTests);
 
 export default router;

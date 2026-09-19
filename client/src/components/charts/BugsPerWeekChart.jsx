@@ -51,7 +51,7 @@ function BugsPerWeekChart({ data }) {
     <ChartCard title="Bugs opened vs. closed (last 8 weeks)" tableColumns={tableColumns} tableRows={tableRows}>
       <div className="chart-legend">
         <span className="chart-legend-item"><span className="chart-legend-swatch" style={{ background: OPENED_COLOR }} />Opened</span>
-        <span className="chart-legend-item"><span className="chart-legend-swatch chart-legend-swatch--round" style={{ background: CLOSED_COLOR }} />Closed</span>
+        <span className="chart-legend-item"><span className="chart-legend-swatch chart-legend-swatch--outline" style={{ color: CLOSED_COLOR }} />Closed</span>
       </div>
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="Grouped bar chart of bugs opened versus closed per week">
         {gridValues.map((v) => (

@@ -110,6 +110,14 @@ db.exec(`
   );
 `);
 
+// The `reports` table predates the AI-narrative feature — ADD COLUMN here
+// (guarded so it only runs once) instead of in the CREATE TABLE above, so
+// existing databases pick it up without losing their data.
+const reportColumns = db.prepare('PRAGMA table_info(reports)').all().map((c) => c.name);
+if (!reportColumns.includes('narrative')) {
+  db.exec('ALTER TABLE reports ADD COLUMN narrative TEXT');
+}
+
 const seedCount = db.prepare('SELECT COUNT(*) AS count FROM test_cases').get().count;
 
 if (seedCount === 0) {
@@ -439,6 +447,88 @@ if (reportSeedCount === 0) {
     });
   }
 }
+
+// Gives the flaky-tests leaderboard something real to show. Without this,
+// no test case has more than one recorded result, so nothing can ever look
+// flaky — flip detection needs at least one test that alternates pass/fail
+// across runs. Gated on a distinct `created_by` marker (not `runSeedCount`
+// above) so this seeds correctly whether the database is brand new or
+// already has the original single seed run, without ever duplicating.
+//
+// The check-then-insert is wrapped in a single db.transaction() rather than
+// a plain `if` — better-sqlite3's transactions hold SQLite's own write lock
+// for their full duration, so two Node processes racing to load this same
+// module (e.g. two dev-server instances watching the same files) can't both
+// pass the check before either has inserted, the way a bare `if` could.
+const seedFlakeRuns = db.transaction(() => {
+  const flakeSeedExists = db.prepare("SELECT id FROM test_runs_v2 WHERE created_by = 'seed-flake-demo' LIMIT 1").get();
+  if (flakeSeedExists) return;
+
+  const flakeSuite = db.prepare('SELECT id FROM suites WHERE name = ?').get('Login regression suite');
+
+  if (flakeSuite) {
+    const flakeCaseIds = db
+      .prepare('SELECT test_case_id FROM suite_test_cases WHERE suite_id = ? ORDER BY sort_order ASC')
+      .all(flakeSuite.id)
+      .map((r) => r.test_case_id);
+
+    if (flakeCaseIds.length >= 2) {
+      // The second case already has one 'failed' result from the original
+      // seed run above; failed -> passed -> failed here gives it 2 real
+      // flips. The other cases stay 'passed' throughout — a clean contrast
+      // that never shows up as flaky.
+      const flakyResultsByRun = [
+        ['passed', 'failed', 'passed'],
+        ['passed', 'passed', 'passed'],
+        ['passed', 'failed', 'passed'],
+      ];
+
+      const insertFlakeRun = db.prepare(`
+        INSERT INTO test_runs_v2 (suite_id, status, pass_count, fail_count, skip_count, start_time, end_time, created_by)
+        VALUES (@suite_id, 'completed', @pass_count, @fail_count, @skip_count, @start_time, @end_time, 'seed-flake-demo')
+      `);
+      const insertFlakeResult = db.prepare(`
+        INSERT INTO test_run_results (run_id, test_case_id, result, duration_ms, notes, failed_at, alert_sent_at)
+        VALUES (@run_id, @test_case_id, @result, @duration_ms, @notes, @failed_at, NULL)
+      `);
+
+      flakyResultsByRun.forEach((outcomes, runIndex) => {
+        // All after the original seed run's 2-hours-ago start time, and in
+        // ascending order across these three, so the flip sequence reads
+        // correctly chronologically.
+        const minutesAgo = 90 - runIndex * 30;
+        const startTime = new Date(Date.now() - minutesAgo * 60 * 1000).toISOString();
+        const endTime = new Date(new Date(startTime).getTime() + 8 * 60 * 1000).toISOString();
+
+        const runResult = insertFlakeRun.run({
+          suite_id: flakeSuite.id,
+          pass_count: outcomes.filter((o) => o === 'passed').length,
+          fail_count: outcomes.filter((o) => o === 'failed').length,
+          skip_count: outcomes.filter((o) => o === 'skipped').length,
+          start_time: startTime,
+          end_time: endTime,
+        });
+
+        flakeCaseIds.forEach((testCaseId, i) => {
+          const outcome = outcomes[i] ?? 'skipped';
+          insertFlakeResult.run({
+            run_id: runResult.lastInsertRowid,
+            test_case_id: testCaseId,
+            result: outcome,
+            duration_ms: 1000 + i * 200,
+            notes:
+              outcome === 'failed'
+                ? 'Intermittent: login page redirected to a 500 error page instead of showing the dashboard.'
+                : null,
+            failed_at: outcome === 'failed' ? endTime : null,
+          });
+        });
+      });
+    }
+  }
+});
+
+seedFlakeRuns();
 
 const preferencesRow = db.prepare('SELECT id FROM user_preferences WHERE id = 1').get();
 
