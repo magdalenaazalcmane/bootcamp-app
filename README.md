@@ -1,5 +1,7 @@
 # My App
 
+Live demo: https://bootcamp-app-643q.onrender.com
+
 Minimal skeleton: Express API (`server/`) + React app (`client/`, built with Vite).
 
 ## Setup (one time)
