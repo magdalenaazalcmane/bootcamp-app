@@ -1,0 +1,9 @@
+{
+  "name": "qa-plugin",
+  "description": "QA workflow toolkit: manual test case and bug report authoring, ISTQB-style test generation, QA/accessibility review, flaky-test root-causing, release notes, daily logs, and CLAUDE.md compliance hooks.",
+  "version": "0.2.0",
+  "author": {
+    "name": "Magdalena Alma Zalcmane",
+    "email": "magdalena.a.zalcmane@testdevlab.com"
+  }
+}

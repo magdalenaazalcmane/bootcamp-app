@@ -1,71 +1,81 @@
-# My App
+# qa-plugin
 
-Live demo: https://bootcamp-app-643q.onrender.com
+## Overview
 
-Minimal skeleton: Express API (`server/`) + React app (`client/`, built with Vite).
+A portable QA workflow toolkit for Claude Code, bundled in this same repo
+(top level, alongside `client/` and `server/`) rather than as a separate
+project: manual test case and bug report authoring, ISTQB-style test
+generation, QA/accessibility review, flaky-test root-causing, release
+notes, daily logs, and CLAUDE.md compliance hooks — as commands, skills,
+agents, and hooks you can drop into any project.
 
-## Setup (one time)
+The app this plugin was built alongside — a test-case/bug-tracker tool —
+lives in `client/` and `server/` in this same repo; see `docs/APP.md` for
+its own setup, run, and deploy instructions.
 
-```bash
-npm install
-```
+This bundle mirrors what's actively used to build that app, kept in
+`.claude/` at the project root (that copy is this project's own live
+config — see `.claude/settings.json`). The copies here under `agents/`,
+`commands/`, `skills/`, and `hooks/` are the same content, packaged the way
+Claude Code expects a distributable plugin to be laid out, so it can be
+installed into a different project too.
 
-## Run
+## Installation
 
-```bash
-npm run dev
-```
+1. Copy (or symlink) this repo — or just the plugin files (`.claude-plugin/`,
+   `agents/`, `commands/`, `skills/`, `hooks/`) — into your Claude Code
+   plugins location, or add it to a plugin marketplace your team uses.
+2. Enable it for a project the way you'd enable any other Claude Code
+   plugin (see the [Claude Code plugin docs](https://docs.claude.com/en/docs/claude-code/plugins) for your setup).
+3. **Requirement:** several pieces here (`test-writer`, `qa-reviewer`,
+   `test-generator`, `qa-review`, `flake-analyzer`) read a `CLAUDE.md` at
+   your project root and depend on it defining:
+   - Severity levels: `Critical` / `Major` / `Minor` / `Trivial`
+   - A test case shape: title, preconditions, steps, expected result,
+     severity, status
+   - An API response envelope (only relevant if you use
+     `check-response-shape.sh`)
 
-This starts both the server (http://localhost:3001) and the client (http://localhost:5173) together. Open http://localhost:5173 in your browser — it will show a "Server status: ok" message once both are running, proving the client can talk to the server.
+   Without a compatible `CLAUDE.md`, these will still run, but their output
+   won't match your project's actual conventions. If your project has no
+   `CLAUDE.md` yet, write one first (or ask Claude to draft one) using the
+   shape above.
 
-## Layout
+No other setup is required — nothing here calls an external API or needs
+credentials.
 
-- `server/index.js` — Express server entry point, currently exposes `GET /api/health`.
-- `client/src/` — React source code (`App.jsx` is the main page).
+## What's Included
 
-## Deploy
+| Type | Name | What it does |
+|---|---|---|
+| Command | `/new-test` | Asks 3 questions + a severity, saves one manual test case under `tests/manual/`. |
+| Command | `/bug-report` | Asks 5 questions, saves one bug report under `tests/bugs/`. |
+| Command | `/daily-log` | Asks 3 questions, saves/overwrites today's log under `logs/daily/`. |
+| Agent | `test-writer` | Given a feature description, writes a full ISTQB-style test suite (happy path, boundaries, negatives) as files under `tests/manual/`. |
+| Agent | `qa-reviewer` | Reviews code/a feature from a tester's angle (read-only) and reports a severity-grouped list of what could break. |
+| Agent | `release-notes-writer` | Turns a list of changes into plain-language release notes grouped into Added/Improved/Fixed/Known issues, saved under `release-notes/`. |
+| Agent | `flake-analyzer` | Given a flaky test's title and pass/fail history, root-causes *why* it's flaky — grounded in the actual test steps and code, not a generic list. |
+| Skill | `test-generator` | The ISTQB boundary-value methodology `test-writer` and `/new-test` follow — also loads on its own for ad hoc "write test cases for X" requests. |
+| Skill | `qa-review` | The QA-review methodology `qa-reviewer` follows — also loads on its own for ad hoc "what could break here" requests. |
+| Skill | `code-explainer` | Explains code or a diff in plain, non-technical language, with a QA angle for diffs (what to test as a result of the change). |
+| Hook | `check-response-shape.sh` (PostToolUse) | Warns if an edited `server/routes/` file sends a response that doesn't follow the `{success, data, error}` envelope. |
+| Hook | `check-severity-enum.sh` (PostToolUse) | Warns if an edited file uses a severity word outside `Critical`/`Major`/`Minor`/`Trivial`. |
+| Hook | `check-flake-recompute.sh` (PostToolUse) | Warns if an edited `server/routes/` file writes a test result without also calling the shared flake-detection check. |
+| Hook | `session-summary.sh` (SessionEnd) | Writes a plain-language summary of the session to `logs/sessions/<timestamp>.md`. |
 
-Deployed on **Render** (free "Web Service" tier), not Vercel/Netlify/Cloudflare
-Pages. Those three are serverless/edge platforms with no persistent
-filesystem, and this app stores data in a local SQLite file
-(`better-sqlite3`) via a normal long-running Express process — Render is the
-one of the four that runs exactly that kind of process for free, so the app
-ships as-is with no database migration.
+All three PostToolUse hooks are warn-only (they never block a write), since
+they're heuristics, not real parsers — see the comments at the top of each
+script for known false-positive cases.
 
-**Free tier reality, so there are no surprises:** Render's free web services
-spin down after 15 minutes of no traffic (the next request wakes it back up,
-which takes up to ~1 minute), and the free tier has no *persistent* disk —
-the SQLite file survives normal use and sleep/wake cycles, but resets to
-empty on every redeploy. Fine for a demo/practice app; not a place to keep
-data you care about long-term. (750 free instance-hours/month, 512MB RAM,
-single instance — plenty for this app.)
+## Usage Examples
 
-### One-time setup
+Both examples below are real output already sitting in this repo — not
+constructed samples.
 
-1. Install the Render CLI: `brew install render-oss/render/render` (or see
-   [render.com/docs/cli](https://render.com/docs/cli) for other platforms).
-2. Make sure your latest work is pushed to `origin/main` — Render builds
-   from the git remote, not your local working copy.
-
-### Deploy
-
-```bash
-render services create --name bootcamp-app --repo https://code.tdlbox.com/magdalena.a.zalcmane/bootcamp-app.git --branch main --type web --runtime node --build-command "npm install && npm run build" --start-command "npm start" --plan free --confirm
-```
-
-First run opens your browser to sign in and pick a workspace, then creates
-and deploys the service. It prints the live URL
-(`https://bootcamp-app.onrender.com`, or a suffixed variant if that name's
-taken) when the deploy finishes.
-
-`render.yaml` documents the same configuration as infrastructure-as-code —
-useful if you ever connect this repo through the Render Dashboard's "New
-Blueprint" flow instead of the CLI.
-
-### Environment variables (all optional)
-
-See `.env.example`. `DISCORD_WEBHOOK_URL` and `APP_BASE_URL` are only used
-for the bug-tracker's Discord alerts; the app runs fine with neither set.
-After your first deploy, set `APP_BASE_URL` to your real `onrender.com` URL
-in the Render dashboard (Environment tab) so Discord alert links point at
-the live app instead of `localhost`.
+- **[`examples/bug-report-command.md`](examples/bug-report-command.md)** —
+  the `/bug-report` command's actual saved output
+  (`tests/bugs/2026-09-09-test.md`).
+- **[`examples/test-generator-output.md`](examples/test-generator-output.md)** —
+  a representative slice of a real 27-file ISTQB test suite the
+  `test-generator` skill / `test-writer` agent produced for a signup form
+  (`tests/manual/signup-*.md`).
