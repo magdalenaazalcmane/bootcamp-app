@@ -86,6 +86,7 @@ function ImportTestCasesPage() {
           {commitError && <p className="form-error">{commitError}</p>}
 
           <h2 style={{ marginTop: '1.5rem' }}>Preview</h2>
+          <div className="table-scroll">
           <table className="test-case-table">
             <thead>
               <tr>
@@ -101,7 +102,7 @@ function ImportTestCasesPage() {
               {[...preview.valid.map((r) => ({ ...r, ok: true })), ...preview.invalid.map((r) => ({ ...r, ok: false }))]
                 .sort((a, b) => a.row_number - b.row_number)
                 .map((row) => (
-                  <tr key={row.row_number} style={row.ok ? undefined : { background: '#fde2e1' }}>
+                  <tr key={row.row_number} style={row.ok ? undefined : { boxShadow: 'inset 4px 0 0 var(--error)' }}>
                     <td>{row.row_number}</td>
                     <td>{row.title}</td>
                     <td>{row.ok ? <SeverityBadge severity={row.severity} /> : '—'}</td>
@@ -118,6 +119,7 @@ function ImportTestCasesPage() {
                 ))}
             </tbody>
           </table>
+          </div>
         </>
       )}
 

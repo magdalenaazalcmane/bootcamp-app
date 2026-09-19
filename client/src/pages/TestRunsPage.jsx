@@ -33,6 +33,7 @@ function TestRunsPage() {
 
       {error && <p className="form-error">{error}</p>}
 
+      <div className="table-scroll">
       <table className="test-case-table">
         <thead>
           <tr>
@@ -63,6 +64,7 @@ function TestRunsPage() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

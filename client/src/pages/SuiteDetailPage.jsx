@@ -159,6 +159,7 @@ function SuiteDetailPage() {
       {cases.length === 0 ? (
         <p>No cases in this suite yet. Add one below.</p>
       ) : (
+        <div className="table-scroll">
         <table className="test-case-table">
           <thead>
             <tr>
@@ -193,6 +194,7 @@ function SuiteDetailPage() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       <h2>Add a case</h2>

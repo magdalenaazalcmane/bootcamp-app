@@ -157,30 +157,32 @@ function DashboardPage() {
               <p><Link to="/test-suites">Start a test run</Link> from one of your suites to see it here.</p>
             </div>
           ) : (
-            <table className="test-case-table">
-              <thead>
-                <tr>
-                  <th>Suite</th>
-                  <th>Status</th>
-                  <th>Passed</th>
-                  <th>Failed</th>
-                  <th>Skipped</th>
-                  <th>Started</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recent_runs.map((run) => (
-                  <tr key={run.id}>
-                    <td><Link to={`/test-runs/${run.id}`}>{run.suite_name}</Link></td>
-                    <td>{RUN_STATUS_LABELS[run.status]}</td>
-                    <td>{run.pass_count}</td>
-                    <td>{run.fail_count}</td>
-                    <td>{run.skip_count}</td>
-                    <td>{formatDate(run.start_time)}</td>
+            <div className="table-scroll">
+              <table className="test-case-table">
+                <thead>
+                  <tr>
+                    <th>Suite</th>
+                    <th>Status</th>
+                    <th>Passed</th>
+                    <th>Failed</th>
+                    <th>Skipped</th>
+                    <th>Started</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.recent_runs.map((run) => (
+                    <tr key={run.id}>
+                      <td><Link to={`/test-runs/${run.id}`}>{run.suite_name}</Link></td>
+                      <td>{RUN_STATUS_LABELS[run.status]}</td>
+                      <td>{run.pass_count}</td>
+                      <td>{run.fail_count}</td>
+                      <td>{run.skip_count}</td>
+                      <td>{formatDate(run.start_time)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           <h2>Recent activity</h2>
